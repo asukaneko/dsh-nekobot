@@ -143,6 +143,47 @@ test("角色、世界书共享操作，引用检查与会话记忆隔离", async
     /userOnly/,
   );
 });
+test("删除会话时移除绑定和该会话记忆，其他会话不受影响", async () => {
+  const library = new Library(memoryDomain());
+  const card = (await library.execute(
+    { action: "create", kind: "character", value: { name: "小满" } },
+    "s1",
+  )) as Character;
+  for (const [session, content] of [
+    ["s1", "一"],
+    ["s2", "二"],
+  ]) {
+    await library.execute(
+      { action: "bind", value: { characterId: card.id, enabled: true } },
+      session,
+    );
+    await library.execute(
+      { action: "create", kind: "memory", value: { content } },
+      session,
+    );
+  }
+  await assert.rejects(
+    library.execute({ action: "session-delete", id: "s1" }, "s1", "agent"),
+    /userOnly/,
+  );
+  await library.execute({ action: "session-delete", id: "s1" }, "s1");
+  assert.equal(library.read("bindings", "s1"), undefined);
+  assert.equal(library.memories("s1", card.id).length, 0);
+  assert.equal(library.binding("s2").characterId, card.id);
+  assert.equal(library.memories("s2", card.id)[0].content, "二");
+  const snapshot = (await library.execute(
+    { action: "list" },
+    "s2",
+  )) as LibrarySnapshot;
+  assert.deepEqual(
+    snapshot.sessions.map((session) => session.id),
+    ["s2"],
+  );
+  await assert.rejects(
+    library.execute({ action: "session-delete", id: "s1" }, "s1"),
+    /notFound/,
+  );
+});
 test("关闭绑定与不同角色不会继续注入旧记忆", async () => {
   const library = new Library(memoryDomain());
   const a = (await library.execute(

@@ -164,6 +164,33 @@ export class WorkspaceController {
       return false;
     }
   }
+  async deleteSession(id: string) {
+    if (this.state.busy || !this.guard()) return false;
+    this.update({ busy: true, error: "" });
+    try {
+      await this.request({ action: "session-delete", id });
+      if (this.state.sessionId === id) {
+        this.update({
+          sessionId: "",
+          card: null,
+          tab: "chats",
+          choosing: false,
+          selectionId: "",
+        });
+        try {
+          this.storage?.setItem("nekobot.session", "");
+        } catch {}
+      }
+      await this.refresh();
+      return !this.state.error;
+    } catch (error) {
+      this.update({
+        busy: false,
+        error: error instanceof Error ? error.message : "operationFailed",
+      });
+      return false;
+    }
+  }
   toggleDetails = () => this.update({ details: !this.state.details });
   setLanguage = (language: string) => {
     this.update({ language });

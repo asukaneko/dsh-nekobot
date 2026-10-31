@@ -36,6 +36,7 @@ export function clientRuntime(request: typeof fetch = fetch) {
     console,
     fetch: request,
     Response,
+    FileReader: globalThis.FileReader,
     AbortController,
     setTimeout,
     clearTimeout,

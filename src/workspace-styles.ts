@@ -27,4 +27,5 @@ export const workspaceStyles = `
 @media(max-width:760px){.nkw-header{padding:12px 16px;min-height:64px}.nkw-heading{min-width:120px}.nkw-tools{justify-content:flex-start}.nkw-details{inset:0 0 0 auto;width:min(300px,85%)}.nkw-opening{width:calc(100% - 32px);padding:24px 0}.nkw-opening-message{padding:16px}.nkw-opening h1{font-size:22px}.nkw-rename{padding:12px 16px}.nkw-gallery{grid-template-columns:repeat(2,minmax(0,1fr))}.nkw .nkw-card{padding:16px;min-height:246px}.nkw-home{padding:28px 16px}}
 @media(max-width:430px){.nkw-gallery{grid-template-columns:minmax(0,1fr)}.nkw .nkw-card{min-height:220px}}
 @media(prefers-reduced-motion:reduce){.nkw *{transition:none!important}}
+.nkw-tools .nkw-danger{color:var(--dsw-alias-state-error-primary)}
 `;

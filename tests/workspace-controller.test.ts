@@ -89,3 +89,86 @@ test("本地记住的会话失效时仍能打开角色库", async () => {
   assert.ok(controller.getSnapshot().data);
   controller.dispose();
 });
+test("删除当前会话后清空记忆的会话，删除其他会话保留当前选择", async () => {
+  const card = normalizeCharacter({ name: "小满" }, "card1"),
+    storage = new Map([["nekobot.session", "s1"]]),
+    operations: any[] = [];
+  let sessions: any[] = ["s1", "s2", "s3"].map((id, index) => ({
+    id,
+    characterId: card.id,
+    name: "会话" + id,
+    characterName: "小满",
+    pinned: false,
+    createdAt: index,
+    avatar: "",
+  }));
+  const controller = new WorkspaceController(
+    {
+      openSession: async () => {},
+      show: () => {},
+      leave: () => {},
+    },
+    async (_url, init) => {
+      const { operation, sessionId } = JSON.parse(init!.body as string);
+      operations.push(operation);
+      if (operation.action === "session-delete") {
+        sessions = sessions.filter((row) => row.id !== operation.id);
+        return Response.json({ ok: true, data: { id: operation.id } });
+      }
+      return Response.json({
+        ok: true,
+        data:
+          operation.action === "get"
+            ? card
+            : {
+                characters: [card],
+                worldbooks: [],
+                memories: [],
+                sessions,
+                binding: sessions.some((row) => row.id === sessionId)
+                  ? {
+                      characterId: card.id,
+                      enabled: true,
+                      userName: "小星",
+                    }
+                  : { characterId: "", enabled: false, userName: "" },
+                settings: { maxWorldChars: 6000, recentMessages: 6 },
+              },
+      });
+    },
+    {
+      getItem: (key) => storage.get(key) || null,
+      setItem: (key, value) => {
+        storage.set(key, value);
+      },
+    },
+  );
+  await controller.enter();
+  assert.equal(controller.getSnapshot().sessionId, "s1");
+  assert.ok(await controller.deleteSession("s1"));
+  assert.equal(controller.getSnapshot().sessionId, "");
+  assert.equal(controller.getSnapshot().card, null);
+  assert.equal(storage.get("nekobot.session"), "");
+  assert.deepEqual(
+    controller.getSnapshot().data?.sessions.map((row) => row.id),
+    ["s2", "s3"],
+  );
+  await controller.openSession("s2");
+  assert.equal(controller.getSnapshot().sessionId, "s2");
+  assert.ok(await controller.deleteSession("s3"));
+  assert.equal(controller.getSnapshot().sessionId, "s2");
+  assert.equal(storage.get("nekobot.session"), "s2");
+  assert.equal(controller.getSnapshot().card?.id, card.id);
+  assert.deepEqual(
+    controller.getSnapshot().data?.sessions.map((row) => row.id),
+    ["s2"],
+  );
+  assert.deepEqual(
+    operations.filter((operation) => operation.action === "session-delete"),
+    [
+      { action: "session-delete", id: "s1" },
+      { action: "session-delete", id: "s3" },
+    ],
+  );
+  controller.dispose();
+});

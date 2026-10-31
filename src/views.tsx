@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { readAvatarFile } from "./avatar.ts";
 import {
   normalizeCharacter,
   normalizeWorldBook,
@@ -24,6 +25,47 @@ interface Snapshot {
   memories: Memory[];
   binding: Binding;
   settings: Settings;
+}
+// 列表会裁掉大立绘，只保留 hasAvatar；需要时再取完整角色卡。
+function CharacterThumb({
+  card,
+  api,
+}: {
+  card: Character & { hasAvatar?: boolean };
+  api: Api;
+}) {
+  const [avatar, setAvatar] = useState(card.avatar),
+    request = useRef(api);
+  request.current = api;
+  useEffect(() => {
+    let live = true;
+    setAvatar(card.avatar);
+    if (!card.avatar && card.hasAvatar)
+      request
+        .current({ action: "get", kind: "character", id: card.id })
+        .then((full) => {
+          if (live && typeof (full as Character)?.avatar === "string")
+            setAvatar((full as Character).avatar);
+        })
+        .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [card.id, card.avatar, card.hasAvatar]);
+  return avatar ? (
+    <img
+      className="nk-initial"
+      style={{ objectFit: "cover" }}
+      src={avatar}
+      alt=""
+      loading="lazy"
+      referrerPolicy="no-referrer"
+    />
+  ) : (
+    <span className="nk-initial" aria-hidden>
+      {card.name.slice(0, 1)}
+    </span>
+  );
 }
 function Field({
   label,
@@ -96,9 +138,22 @@ export function CharacterEditor({
   books: WorldBook[];
   t: Translate;
 }) {
-  const [preview, setPreview] = useState(false);
+  const [preview, setPreview] = useState(false),
+    [portraitError, setPortraitError] = useState(""),
+    fileInput = useRef<HTMLInputElement>(null);
+  useEffect(() => setPortraitError(""), [value.id]);
   const patch = (key: keyof Character, v: unknown) =>
     onChange({ ...value, [key]: v });
+  const upload = async (file?: File) => {
+    if (!file) return;
+    setPortraitError("");
+    try {
+      patch("avatar", await readAvatarFile(file));
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "";
+      setPortraitError(code in messages.en ? code : "invalidFile");
+    }
+  };
   return (
     <>
       <div className="nk-actions" style={{ marginBottom: 18 }}>
@@ -154,13 +209,56 @@ export function CharacterEditor({
               onChange={(e) => patch("description", e.target.value)}
             />
           </Field>
-          <Field label={t("avatar")}>
+          <div className="nk-field">
+            <span>{t("avatar")}</span>
+            <div className="nk-portrait-actions">
+              <button type="button" onClick={() => fileInput.current?.click()}>
+                {t("uploadPortrait")}
+              </button>
+              {value.avatar && (
+                <button
+                  type="button"
+                  className="nk-danger"
+                  onClick={() => {
+                    setPortraitError("");
+                    patch("avatar", "");
+                  }}
+                >
+                  {t("removePortrait")}
+                </button>
+              )}
+              <input
+                ref={fileInput}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                aria-label={t("uploadPortrait")}
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const file = e.currentTarget.files?.[0];
+                  e.currentTarget.value = "";
+                  void upload(file);
+                }}
+              />
+            </div>
             <input
               type="url"
-              value={value.avatar}
-              onChange={(e) => patch("avatar", e.target.value)}
+              placeholder="https://"
+              aria-label={t("avatar")}
+              value={value.avatar.startsWith("data:") ? "" : value.avatar}
+              onChange={(e) => {
+                setPortraitError("");
+                patch("avatar", e.target.value);
+              }}
             />
-          </Field>
+            <small>{t("portraitHint")}</small>
+            {portraitError && (
+              <small className="nk-help" role="alert">
+                {portraitError in messages.en
+                  ? t(portraitError as TextKey)
+                  : t("operationFailed")}
+              </small>
+            )}
+          </div>
           <div className="nk-grid">
             {(
               ["basicInfo", "personality", "scenario", "firstMessage"] as const
@@ -975,13 +1073,10 @@ export function App({
                       disabled={busy}
                       onClick={() => void select(item.id)}
                     >
-                      {tab === "characters" && (item as Character).avatar ? (
-                        <img
-                          className="nk-initial"
-                          style={{ objectFit: "cover" }}
-                          src={(item as Character).avatar}
-                          alt=""
-                          referrerPolicy="no-referrer"
+                      {tab === "characters" ? (
+                        <CharacterThumb
+                          card={item as Character & { hasAvatar?: boolean }}
+                          api={api}
                         />
                       ) : (
                         <span className="nk-initial" aria-hidden>

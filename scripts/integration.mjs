@@ -324,6 +324,46 @@ try {
     (await workspaceApi({ action: "preview" })).prompt,
     /月下山林初遇/,
   );
+  const originalSession = workspaceSession;
+  const extra = await workspaceApi({ action: "start", id: card.id });
+  workspaceSession = extra.sessionId;
+  await workspaceApi({
+    action: "save",
+    kind: "memory",
+    value: { content: "临时记忆" },
+  });
+  assert.equal((await workspaceApi({ action: "list" })).memories.length, 1);
+  assert.equal(
+    (await workspaceApi({ action: "session-delete", id: extra.sessionId })).id,
+    extra.sessionId,
+  );
+  const afterDelete = await workspaceApi({ action: "list" });
+  assert.equal(afterDelete.binding.characterId, "");
+  assert.equal(afterDelete.memories.length, 0);
+  assert.equal(
+    afterDelete.sessions.some((row) => row.id === extra.sessionId),
+    false,
+  );
+  const workspaceFile = JSON.parse(
+    await readFile(path.join(home, "storages/workspace.json"), "utf8"),
+  );
+  assert.ok(
+    workspaceFile.global.archivedSessionIds.includes(extra.sessionId),
+    "deleted conversation is archived in DSH",
+  );
+  workspaceSession = originalSession;
+  assert.ok(
+    (await workspaceApi({ action: "list" })).sessions.some(
+      (row) => row.id === originalSession,
+    ),
+  );
+  assert.match(
+    (await workspaceApi({ action: "preview" })).prompt,
+    /月下山林初遇/,
+  );
+  console.log(
+    "PASS: session delete removes the Nekobot binding and memories without touching other conversations",
+  );
   const denied = await fetch(rpc.origin + "/api/nekobot", {
     method: "POST",
     headers: { "content-type": "application/json" },

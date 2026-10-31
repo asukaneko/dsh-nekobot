@@ -37,6 +37,28 @@ export async function apply(ctx: any) {
   const domain = await ctx.storageDomain.open(spec),
     library = new Library(domain);
   ctx.effect(() => () => domain.close());
+  // DSH 没有会话物理删除接口，只能归档：日志保留，会话从列表隐藏。
+  const workspace = (() => {
+    try {
+      return ctx.get?.("workspaceRegistry");
+    } catch {
+      return undefined;
+    }
+  })();
+  const archive = async (id: string) => {
+    if (typeof workspace?.archiveSession !== "function") return false;
+    try {
+      await workspace.archiveSession(id, { stopActivity: true });
+      return true;
+    } catch (error) {
+      ctx.logger.warn(
+        'Nekobot could not archive session "%s": %s',
+        id,
+        error instanceof Error ? error.message : String(error),
+      );
+      return false;
+    }
+  };
   const operate = async (
     op: Operation,
     sessionId: string,
@@ -69,7 +91,10 @@ export async function apply(ctx: any) {
         );
         return { ok: true, data: created };
       }
-      return { ok: true, data: await library.execute(op, sessionId, caller) };
+      const data = await library.execute(op, sessionId, caller);
+      if (op.action === "session-delete" && typeof op.id === "string")
+        await archive(op.id);
+      return { ok: true, data };
     } catch (e) {
       if (!(e instanceof NekoError))
         ctx.logger.error(

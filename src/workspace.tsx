@@ -337,9 +337,9 @@ export function Workspace({
       <style>{workspaceStyles}</style>
       <header className="nkw-header">
         <div className="nkw-heading">
-          {state.tab === "chats" && active ? (
+          {state.tab === "chats" && current && state.card ? (
             <>
-              <Avatar card={state.card!} />
+              <Avatar card={state.card} />
               <div>
                 <strong>{current?.name || state.card!.name}</strong>
                 <small>
@@ -364,11 +364,11 @@ export function Workspace({
           >
             + {t("newChat")}
           </button>
-          {state.tab === "chats" && active && (
+          {state.tab === "chats" && current && (
             <>
               <button
                 onClick={() => {
-                  setTitle(current?.name || state.card!.name);
+                  setTitle(current.name);
                   setRenaming(true);
                 }}
                 disabled={state.busy}
@@ -376,15 +376,25 @@ export function Workspace({
                 {t("rename")}
               </button>
               <button
-                aria-pressed={!!current?.pinned}
+                aria-pressed={!!current.pinned}
                 onClick={() =>
                   void controller.updateSession(state.sessionId, {
-                    pinned: !current?.pinned,
+                    pinned: !current.pinned,
                   })
                 }
                 disabled={state.busy}
               >
-                {t(current?.pinned ? "unpin" : "pin")}
+                {t(current.pinned ? "unpin" : "pin")}
+              </button>
+              <button
+                className="nkw-danger"
+                onClick={() => {
+                  if (confirm(t("confirmDeleteSession")))
+                    void controller.deleteSession(state.sessionId);
+                }}
+                disabled={state.busy}
+              >
+                {t("deleteSession")}
               </button>
             </>
           )}

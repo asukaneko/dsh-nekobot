@@ -83,6 +83,7 @@ export interface Operation {
     | "preview"
     | "settings"
     | "session"
+    | "session-delete"
     | "start";
   kind?: Kind;
   id?: string;

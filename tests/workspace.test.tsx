@@ -21,6 +21,8 @@ test("工作台真实点击链：加载角色库、开聊、编辑保存世界�
     "Event",
     "MouseEvent",
     "localStorage",
+    "File",
+    "FileReader",
     "IS_REACT_ACT_ENVIRONMENT",
   ];
   const original = new Map(
@@ -248,6 +250,40 @@ test("工作台真实点击链：加载角色库、开聊、编辑保存世界�
       (document.querySelector(".nk-detail input") as HTMLInputElement).value,
       "小满",
     );
+    const portrait = new dom.window.File(
+      [new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])],
+      "portrait.png",
+      { type: "image/png" },
+    );
+    const uploadInput = document.querySelector(
+      ".nk-field input[type=file]",
+    ) as HTMLInputElement;
+    assert.ok(uploadInput, "角色编辑器提供立绘上传");
+    Object.defineProperty(uploadInput, "files", {
+      configurable: true,
+      value: [portrait],
+    });
+    await act(async () => {
+      uploadInput.dispatchEvent(
+        new dom.window.Event("change", { bubbles: true }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+    assert.match(
+      document.querySelector(".nk-portrait")?.getAttribute("src") || "",
+      /^data:image\/png;base64,/,
+    );
+    await act(async () => {
+      document
+        .querySelector(".nk-detail form")!
+        .dispatchEvent(
+          new dom.window.Event("submit", { bubbles: true, cancelable: true }),
+        );
+    });
+    assert.match(
+      library.read<Character>("characters", card.id)!.avatar,
+      /^data:image\/png;base64,/,
+    );
     await click(button("记忆", document.querySelector(".nkw-side-footer")!));
     await change(document.querySelector(".nk-panel textarea")!, "喜欢乌龙茶");
     await click(document.querySelectorAll(".nkw-navigation button")[0]);
@@ -281,6 +317,20 @@ test("工作台真实点击链：加载角色库、开聊、编辑保存世界�
       document.querySelector(".nkw-session")?.textContent?.includes("山间初遇"),
       "置顶会话保持在最前面",
     );
+    const deleteSession = () =>
+      button("删除", document.querySelector(".nkw-tools")!);
+    runtime.sandbox.confirm = () => false;
+    await click(deleteSession());
+    assert.equal(
+      document.querySelectorAll(".nkw-session").length,
+      2,
+      "取消确认不会删除会话",
+    );
+    runtime.sandbox.confirm = () => true;
+    await click(deleteSession());
+    assert.equal(document.querySelectorAll(".nkw-session").length, 1);
+    assert.equal(library.binding("role-chat-2").characterId, "");
+    assert.equal(document.querySelector("[data-native-session]"), null);
   } finally {
     await act(async () => root.unmount());
     runtime.dispose();

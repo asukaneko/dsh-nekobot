@@ -470,6 +470,18 @@ export class Library {
         await this.put("bindings", op.id, binding);
         return binding;
       }
+      case "session-delete": {
+        // 删除 Nekobot 自己的会话记录和记忆；DSH 原始会话由宿主归档。
+        if (caller !== "user") throw new NekoError("userOnly");
+        if (!op.id || !this.read<Binding>("bindings", op.id)?.characterId)
+          throw new NekoError("notFound");
+        const memories = this.domain.table("memories");
+        for (const [id, row] of Array.from(memories.entries()))
+          if ((JSON.parse(row.json) as Memory).sessionId === op.id)
+            await memories.delete(id);
+        await this.domain.table("bindings").delete(op.id);
+        return { id: op.id };
+      }
       case "settings": {
         if (caller !== "user") throw new NekoError("userOnly");
         const settings = normalizeSettings(op.value);

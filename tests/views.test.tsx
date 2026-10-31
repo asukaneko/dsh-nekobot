@@ -22,6 +22,8 @@ test("五种语言的角色编辑表单和世界书表单可渲染，用户内�
     );
     assert.ok(html.includes(dictionary.personality));
     assert.ok(html.includes(dictionary.linkedBooks));
+    assert.ok(html.includes(dictionary.uploadPortrait));
+    assert.ok(html.includes(dictionary.portraitHint));
     assert.ok(!html.includes("<script>"));
     assert.ok(html.includes("&lt;script&gt;"));
     assert.ok(html.includes('referrerPolicy="no-referrer"'));
