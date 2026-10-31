@@ -72,7 +72,11 @@ export interface Operation {
     | "list"
     | "get"
     | "save"
+    | "create"
+    | "update"
     | "delete"
+    | "entry-save"
+    | "entry-delete"
     | "import"
     | "export"
     | "bind"
@@ -82,6 +86,7 @@ export interface Operation {
     | "start";
   kind?: Kind;
   id?: string;
+  entryId?: string;
   value?: unknown;
   data?: string;
   fileName?: string;

@@ -7,10 +7,28 @@ Nekobot 的 DSH 原生角色扮演工作台。从 DSH 侧边栏打开 **Nekobot*
 1. 在侧栏的「角色卡」中新建角色，或导入 Nekobot JSON/ZIP、酒馆 V2/V3 JSON/PNG。
 2. 在「世界书」中编辑关键词、内容、常驻规则、优先级和注入位置，再到角色卡中勾选关联。
 3. 在首页选择角色并「开始对话」。左侧切换会话，中间使用 DSH 原生聊天与输入框，右侧展示立绘、角色设定和关联世界书。
-4. 角色资料中的「设置」可调整当前会话的称呼与绑定；「记忆」管理当前角色在本会话中的记忆。Agent 的 `nekobot_library` 工具共用这套数据。
+4. 角色资料中的「设置」可调整当前会话的称呼与绑定；「记忆」管理当前角色在本会话中的记忆。Agent 通过 `nekobot_character_*`、`nekobot_worldbook_*`、`nekobot_memory_*` 工具共用这套数据。
 5. 会话顶部可重命名或置顶；资料栏可直接打开对应角色卡与世界书。记忆支持编辑，离开未保存的页面时会提示确认。
 
 角色卡和世界书共用一个持久库；绑定、记忆按会话隔离。模型、流式回复与工具执行使用 DSH 的现有配置。
+
+## Agent 工具
+
+Agent 可用以下 DSH 工具直接维护角色库；所有写入与工作台共用同一持久数据，界面会读取到最新结果。
+
+| 工具 | 作用 |
+| --- | --- |
+| `nekobot_character_list` / `nekobot_character_get` | 列出角色摘要、读取单张角色卡完整设定 |
+| `nekobot_character_save` | 省略 `id` 新建，提供 `id` 时只更新提交的字段 |
+| `nekobot_character_delete` | 删除角色卡（仍被会话绑定时返回 `inUse`） |
+| `nekobot_worldbook_list` / `nekobot_worldbook_get` | 列出世界书摘要、分页读取条目（可按关键词过滤） |
+| `nekobot_worldbook_save` / `nekobot_worldbook_delete` | 新建或局部更新世界书、删除世界书 |
+| `nekobot_worldbook_entry_save` / `nekobot_worldbook_entry_delete` | 不改整本世界书，只增改或删除单条条目 |
+| `nekobot_memory_list` / `nekobot_memory_save` / `nekobot_memory_delete` | 管理当前会话、当前绑定角色的记忆 |
+| `nekobot_preview` | 预览当前角色提示词、命中的世界书条目和最终注入文本 |
+| `nekobot_library` | 旧版通用入口，保留给既有会话和自动化调用 |
+
+`nekobot_*_save` 新建时省略 `id`；更新时只提交要改的字段，未提交的字段保持原值（角色卡的世界书关联、六维关系和世界书条目都按此规则合并）。`nekobot_worldbook_save` 提交 `entries` 会整体替换条目，只改单条时用 `nekobot_worldbook_entry_save`。角色卡立绘只向模型返回 https 地址或 `hasAvatar`，不返回 base64 数据；世界书条目正文超过 20000 字时读取结果会截断并标记。
 
 界面支持简体中文、繁体中文、英文、日文、韩文，跟随宿主主题，窄屏收起侧栏并将角色资料显示为抽屉。语言可在工作台右上角切换。
 

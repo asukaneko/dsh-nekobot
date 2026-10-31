@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { NekoError } from "./core.ts";
 import { Library } from "./library.ts";
+import { registerTools } from "./tools.ts";
 import type { Operation, Reply } from "./types.ts";
 
 export const name = "nekobot";
@@ -125,52 +126,8 @@ export async function apply(ctx: any) {
       return { kind: "success", text: JSON.stringify(result) };
     },
   });
-  ctx.tools.register({
-    name: "nekobot_library",
-    description:
-      "管理 Nekobot 角色卡、世界书和本会话记忆。先 list/get 查看，save 使用 JSON 字符串。会话绑定和设置由用户配置。",
-    parameters: {
-      type: "object",
-      additionalProperties: false,
-      required: ["action"],
-      properties: {
-        action: {
-          type: "string",
-          enum: ["list", "get", "save", "delete", "export"],
-        },
-        kind: { type: "string", enum: ["character", "worldbook", "memory"] },
-        id: { type: "string", description: "已有条目的 ID；新建时省略。" },
-        value: {
-          type: "string",
-          description:
-            "save 的完整 JSON 对象。角色至少有 name；世界书有 name 和 entries；记忆有 content。",
-        },
-      },
-    },
-    output: {
-      schema: {},
-      render: (_args: unknown, value: unknown) => [
-        { type: "text", text: JSON.stringify(value) },
-      ],
-    },
-    execute: async (args: any, exec: any) => {
-      if (
-        !args ||
-        !["list", "get", "save", "delete", "export"].includes(args.action) ||
-        (args.kind && !["character", "worldbook", "memory"].includes(args.kind))
-      )
-        return { ok: false, error: "invalidOperation" };
-      const sessionId = exec.agent?.session?.id;
-      if (!sessionId) return { ok: false, error: "sessionUnavailable" };
-      let value: unknown;
-      try {
-        value = args.value ? JSON.parse(args.value) : undefined;
-      } catch {
-        return { ok: false, error: "invalidOperation" };
-      }
-      return operate({ ...args, value }, sessionId, "agent");
-    },
-  });
+  // 角色卡、世界书、条目和记忆分别由专用工具增删查改，旧入口作为兼容保留。
+  registerTools(ctx, operate);
   const scopes = new Map<string, () => void>();
   const attach = (agent: any) => {
     if (scopes.has(agent.id)) return;

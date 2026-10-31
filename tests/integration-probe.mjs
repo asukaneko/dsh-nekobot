@@ -7,8 +7,13 @@ export function apply(ctx) {
       const assembly = await agent.ctx.systemPrompt.assemble({ scope: agent });
       return { kind: 'success', text: JSON.stringify({ sections: assembly.sections, tools: assembly.tools }) };
     }
+    if (input.action === 'tools') {
+      return { kind: 'success', text: JSON.stringify(ctx.tools.schemas(agent)) };
+    }
     if (input.action === 'tool') {
-      const tool = ctx.tools.get('nekobot_library', agent);
+      const name = input.name || 'nekobot_library';
+      const tool = ctx.tools.get(name, agent);
+      if (!tool) return { kind: 'error', text: 'Missing tool ' + name };
       const value = await tool.execute(input.value, { agent, signal: new AbortController().signal });
       return { kind: 'success', text: JSON.stringify(value) };
     }

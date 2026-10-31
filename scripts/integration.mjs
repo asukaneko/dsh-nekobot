@@ -185,6 +185,76 @@ try {
     },
   });
   assert.ok(memory.ok);
+  const tool = async (name, value) =>
+    command("nekobot-integration", "nekobot-probe", {
+      action: "tool",
+      name,
+      value,
+    });
+  const schemas = await command("nekobot-integration", "nekobot-probe", {
+    action: "tools",
+  });
+  const schemaNames = schemas.map((schema) => schema.name);
+  for (const name of [
+    "nekobot_character_list",
+    "nekobot_character_get",
+    "nekobot_character_save",
+    "nekobot_character_delete",
+    "nekobot_worldbook_list",
+    "nekobot_worldbook_get",
+    "nekobot_worldbook_save",
+    "nekobot_worldbook_delete",
+    "nekobot_worldbook_entry_save",
+    "nekobot_worldbook_entry_delete",
+    "nekobot_memory_list",
+    "nekobot_memory_save",
+    "nekobot_memory_delete",
+    "nekobot_preview",
+    "nekobot_library",
+  ])
+    assert.ok(schemaNames.includes(name), name);
+  assert.equal(
+    schemas.find((schema) => schema.name === "nekobot_character_save")
+      .parameters.type,
+    "object",
+  );
+  const listed = await tool("nekobot_character_list", {});
+  assert.equal(listed.total, 1);
+  assert.equal(listed.characters[0].id, card.id);
+  assert.equal(listed.characters[0].avatar, "");
+  const patched = await tool("nekobot_character_save", {
+    id: card.id,
+    personality: "安静",
+  });
+  assert.equal(patched.character.name, "小满");
+  assert.equal(patched.character.personality, "安静");
+  assert.deepEqual(patched.character.worldBookIds, [book.id]);
+  const entry = await tool("nekobot_worldbook_entry_save", {
+    bookId: book.id,
+    comment: "夜话",
+    content: "夜里很静",
+    keys: ["夜"],
+  });
+  assert.ok(entry.ok && entry.entry.id);
+  const page = await tool("nekobot_worldbook_get", {
+    id: book.id,
+    query: "夜",
+  });
+  assert.equal(page.total, 1);
+  assert.equal(page.entries[0].content, "夜里很静");
+  const memories = await tool("nekobot_memory_list", {});
+  assert.equal(memories.characterId, card.id);
+  assert.equal(memories.memories[0].content, "喜欢乌龙茶");
+  const changed = await tool("nekobot_memory_save", {
+    id: memories.memories[0].id,
+    category: "important_event",
+  });
+  assert.equal(changed.memory.content, "喜欢乌龙茶");
+  assert.equal(changed.memory.category, "important_event");
+  assert.equal(
+    (await tool("nekobot_character_delete", { id: card.id })).error,
+    "inUse",
+  );
   const preview = await operation({
     action: "preview",
     value: { latest: "后山" },
